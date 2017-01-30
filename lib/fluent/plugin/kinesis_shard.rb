@@ -13,13 +13,17 @@ module KinesisShard
     last_sequence_number = state_store.load_sequence_number
     shard_iterator_info = get_shard_iterator_info(shard_id, last_sequence_number)
     shard_iterator = shard_iterator_info.shard_iterator
+    retry_handler = Proc.new do |exception, attempt_number, total_delay|
+      $log.warn("#{exception.class} is occurred; retry attempt #{attempt_number}; #{total_delay} seconds have passed.")
+    end
     
     while !@stop_flag && !@thread_stop_map[shard_id] do
       begin
-        handler = Proc.new do |exception, attempt_number, total_delay|
-          $log.warn("#{exception.class} is occurred; retry attempt #{attempt_number}; #{total_delay} seconds have passed.")
-        end
-        records_info = with_retries(:max_tries => 5, :handler => handler, :rescue => Aws::Kinesis::Errors::ProvisionedThroughputExceededException) do
+        records_info = with_retries(
+                                    max_tries: @retries_on_get_records,
+                                    handler: retry_handler,
+                                    rescue: Aws::Kinesis::Errors::ProvisionedThroughputExceededException
+                                    ) do
           @client.get_records(shard_iterator: shard_iterator, limit: @load_records_limit)
         end
       rescue => e
