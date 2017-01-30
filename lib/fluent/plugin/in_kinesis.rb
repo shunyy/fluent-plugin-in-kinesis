@@ -19,6 +19,7 @@ require 'securerandom'
 require 'base64'
 require 'stringio'
 require 'zlib'
+require 'retries'
 require 'fluent/plugin/thread_supervisor'
 require 'fluent/plugin/kinesis_shard'
 
